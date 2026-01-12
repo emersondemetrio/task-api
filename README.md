@@ -8,14 +8,14 @@ An API for a task application.
 
 ## Quick Start
 
-### Option 1: Local Development (Recommended for Development)
+### Option 1 - Local Development
 
-This runs the database in Docker but your app runs locally for fast development.
+This runs the database in Docker but the app runs locally for hot reload.
 
 #### 1. Clone and Install
 
 ```bash
-# Clone the repository
+# Clone
 git clone git@github.com:emersondemetrio/task-api.git
 cd task-api
 
@@ -37,9 +37,6 @@ LOG_LEVEL="info"
 ```bash
 # Start only the database
 docker-compose up -d postgres
-
-# Verify it's running
-docker-compose ps
 ```
 
 #### 4. Setup Database
@@ -52,8 +49,6 @@ npx prisma migrate dev
 npm run seed:users
 ```
 
-You'll see test API keys printed. Save these for testing!
-
 #### 5. Start Development Server
 
 ```bash
@@ -62,8 +57,7 @@ npm run dev
 
 The API will be available at `http://localhost:4000`
 
-## Running on Docker
-
+## Option 2 - Running on Docker
 
 #### 1. Build and Start
 
@@ -75,7 +69,7 @@ npm run docker:build
 npm run docker:up
 
 # Watch logs
-npm run docker:logs:app # see package.json for other logs
+npm run docker:logs:app # see package.json for other log options
 ```
 
 #### 2. Seed Database
@@ -87,11 +81,31 @@ npm run seed:users
 
 The API will be available at `http://localhost:4000`
 
+## Tests
+
+### Run All Tests
+
+```bash
+npm run seed:users # required step
+```
+
+```bash
+npm test
+```
+
+### Test Files
+
+- `test/health.test.ts` - Health check endpoint tests
+- `test/tasks.test.ts` - Task CRUD operations tests
+- `test/authorization.test.ts` - Authorization tests
+
+PS. The test suite uses [node:test](https://nodejs.org/api/test.html) do no external dependency is needed.
+
 ## Demos
 
-### Create a task (via cURL)
 ![Creating a task](/demos/1.png)
 
+### Create a task (via cURL)
 ```bash
 curl --location 'http://localhost:4000/tasks' \
 --header 'x-user-id: 1' \

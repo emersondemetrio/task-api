@@ -1,15 +1,26 @@
 
 import 'dotenv/config';
-import Fastify, { FastifyInstance } from 'fastify';
+import Fastify, { FastifyInstance, FastifyLoggerOptions } from 'fastify';
 import prismaPlugin from './plugins/prisma';
 import authPlugin from './plugins/auth';
 import { routes } from './routes';
 
-export const buildFastifyApp = (): FastifyInstance => {
-  const fastify = Fastify({
-    logger: {
-      level: 'info',
+const loggerSettings = {
+  level: process.env.LOG_LEVEL || 'info',
+  transport: process.env.NODE_ENV === 'development' ? {
+    target: 'pino-pretty',
+    options: {
+      translateTime: 'HH:MM:ss Z',
+      ignore: 'pid,hostname',
     }
+  } : undefined
+}
+
+export const buildFastifyApp = (
+  logger: FastifyLoggerOptions = loggerSettings
+): FastifyInstance => {
+  const fastify = Fastify({
+    logger
   })
 
   // Prisma lives on server requests
