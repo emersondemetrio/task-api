@@ -1,4 +1,4 @@
-import fastify, { FastifyPluginAsync } from "fastify";
+import { FastifyPluginAsync } from "fastify";
 import fp from 'fastify-plugin'
 import { PrismaClient } from "../../generated/prisma";
 import { Pool } from "pg";

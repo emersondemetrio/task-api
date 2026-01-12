@@ -2,6 +2,7 @@
 import 'dotenv/config';
 import Fastify, { FastifyInstance } from 'fastify';
 import prismaPlugin from './plugins/prisma';
+import authPlugin from './plugins/auth';
 import { routes } from './routes';
 
 export const buildFastifyApp = (): FastifyInstance => {
@@ -11,7 +12,11 @@ export const buildFastifyApp = (): FastifyInstance => {
     }
   })
 
+  // Prisma lives on server requests
   fastify.register(prismaPlugin)
+
+  // Auth user is present on requests
+  fastify.register(authPlugin)
 
   fastify.register(routes)
 

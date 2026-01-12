@@ -1,122 +1,138 @@
-import { FastifyReply, FastifyRequest } from "fastify";
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { TaskStatus } from '../../../generated/prisma';
+import { Prisma } from '../../../generated/prisma';
+import type { CreateTaskBody, UpdateTaskBody, PatchTaskBody, TaskParams } from '../../schemas/tasks';
 
-export const getAllTasks = async (
-  request: FastifyRequest, reply: FastifyReply
-) => {
-  // TODO get user from headers
+const TASK_STATUS_MAP: Record<string, TaskStatus> = {
+  'todo': TaskStatus.TODO,
+  'in_progress': TaskStatus.IN_PROGRESS,
+  'done': TaskStatus.DONE,
+  'archived': TaskStatus.ARCHIVED,
+};
+
+export const getAllTasks = async (request: FastifyRequest, reply: FastifyReply) => {
+  const user = request.user;
+
+  if (!user) {
+    return reply.code(401).send({ error: 'Authentication is required' });
+  }
+
   const tasks = await request.server.prisma.task.findMany({
+    where: { creatorId: user.id },
     orderBy: { createdAt: 'desc' }
   });
 
-  return reply.code(200).send(tasks)
+  return reply.code(200).send({
+    tasks
+  });
 }
 
-export const getTaskById = async (
-  request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply
-) => {
-  if (!request?.params?.id) {
-    return reply.code(400).send({
-      error: 'Missing id'
-    })
-  }
-
-  const id = Number(request.params.id)
+export const getTaskById = async (request: FastifyRequest, reply: FastifyReply) => {
   const task = await request.server.prisma.task.findUnique({
-    where: {
-      id
-    }
-  })
+    where: { id: request.task!.id }
+  });
 
   if (!task) {
-    return reply.code(404).send({
-      error: 'Task not found'
-    })
+    return reply.code(404).send({ error: 'Task not found' });
   }
 
-  return reply.code(200).send(task)
+  request.log.debug({ task }, 'Task found');
+
+  return reply.code(200).send(task);
 }
 
-export const createTask = async (
-  request: FastifyRequest<{
-    Body: {
-      title: string
-      description: string
-    }
-  }>, reply: FastifyReply
-) => {
-  const payload = request.body
+export const createTask = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { title, description } = request.body as CreateTaskBody;
+
+  if (!request.user) {
+    return reply.code(401).send({ error: 'Authentication is required' });
+  }
 
   const task = await request.server.prisma.task.create({
     data: {
-      ...payload,
-      creatorId: 1,
-      status: 'TODO'
+      title,
+      description,
+      // Design choice - all tasks are created as TODO
+      status: TaskStatus.TODO,
+      creatorId: request.user.id,
     }
-  })
+  });
 
-  return reply.code(200).send(task)
+  request.log.info({ taskId: task.id }, 'Task created');
+
+  return reply.send(task);
 }
 
-export const updateTask = async (
-  request: FastifyRequest<{
-    Params: {
-      id: number
-    }
-    Body: {
-      title: string
-      description: string,
-      status: any
-    }
-  }>, reply: FastifyReply
-) => {
-  const payload = request.body
-  const params = request.params
+export const patchTask = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as TaskParams;
 
-  if (!params?.id) {
-    return reply.code(400).send({
-      error: 'Missing id'
-    })
+  const { title, description, status } = request.body as PatchTaskBody;
+
+  const updateData: Prisma.TaskUpdateInput = {};
+
+  if (!!title) {
+    updateData.title = title;
   }
 
-  const id = params.id;
-
-  const task = await request.server.prisma.task.update({
-    where: {
-      id
-    },
-    data: {
-      ...payload,
-      creatorId: 1, // TODO get from request
-      status: 'TODO'
-    }
-  })
-
-  return reply.code(200).send(task)
-}
-
-export const deleteTask = async (
-  request: FastifyRequest<{
-    Params: {
-      id: number
-    }
-  }>, reply: FastifyReply
-) => {
-  const params = request.params
-
-  if (!params?.id) {
-    return reply.code(400).send({
-      error: 'Missing id'
-    })
+  if (!!description) {
+    updateData.description = description;
   }
 
-  const id = params.id;
+  if (!!status) {
+    updateData.status = TASK_STATUS_MAP[status] || status as unknown as TaskStatus;
+  }
 
-  await request.server.prisma.task.delete({
-    where: {
-      id
-    }
-  })
+  try {
+    const task = await request.server.prisma.task.update({
+      where: { id },
+      data: updateData,
+    });
 
-  return reply.code(204).send();
+    request.log.info({ id, updates: { title, description, status } }, 'Task patched');
+
+    return reply.code(200).send(task);
+  } catch (error) {
+    request.log.error({ id, error }, 'Error patching task');
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
 }
 
+export const updateTask = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as TaskParams;
+  const { title, description, status } = request.body as UpdateTaskBody;
+
+  const mappedStatus = TASK_STATUS_MAP[status] || status as unknown as TaskStatus;
+
+  try {
+    const task = await request.server.prisma.task.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        status: mappedStatus,
+      },
+    });
+
+    request.log.info({ id }, 'Task updated (full replacement)');
+    return reply.code(200).send(task);
+  } catch (error) {
+    request.log.error({ id, error }, 'Error updating task');
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+}
+
+export const deleteTask = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { id } = request.params as TaskParams;
+
+  try {
+    await request.server.prisma.task.delete({
+      where: { id }
+    });
+
+    request.log.info({ id }, 'Task deleted');
+    return reply.code(204).send();
+  } catch (error) {
+    request.log.error({ id, error }, 'Error deleting task');
+    return reply.code(500).send({ error: 'Internal server error' });
+  }
+}
