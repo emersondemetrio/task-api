@@ -1,23 +1,18 @@
-import fastify from 'fastify';
-import prismaPlugin from './plugins/prisma'
+import { buildFastifyApp } from './app';
 
-const server = fastify({
-  logger: {
-    level: 'info',
+const main = async () => {
+  const fastify = buildFastifyApp();
+  const port = Number(process.env.PORT) || 4000;
+  const host = process.env.HOST || '0.0.0.0';
+
+  try {
+    await fastify.listen({ port, host });
+    fastify.log.info(`Server listening at http://${host}:${port}`);
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    fastify.log.error(error);
+    process.exit(1);
   }
-})
+};
 
-server.register(prismaPlugin)
-
-server.get('/tasks', async (request, reply) => {
-  const tasks = await request.server.prisma.task.findMany()
-  return reply.code(200).send(tasks)
-})
-
-server.listen({ port: 4000 }, (err, address) => {
-  if (err) {
-    console.error(err)
-    process.exit(1)
-  }
-  console.log(`Server listening at ${address}`)
-})
+main();
