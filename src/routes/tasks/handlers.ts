@@ -3,6 +3,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 export const getAllTasks = async (
   request: FastifyRequest, reply: FastifyReply
 ) => {
+  // TODO get user from headers
   const tasks = await request.server.prisma.task.findMany({
     orderBy: { createdAt: 'desc' }
   });
@@ -55,3 +56,67 @@ export const createTask = async (
 
   return reply.code(200).send(task)
 }
+
+export const updateTask = async (
+  request: FastifyRequest<{
+    Params: {
+      id: number
+    }
+    Body: {
+      title: string
+      description: string,
+      status: any
+    }
+  }>, reply: FastifyReply
+) => {
+  const payload = request.body
+  const params = request.params
+
+  if (!params?.id) {
+    return reply.code(400).send({
+      error: 'Missing id'
+    })
+  }
+
+  const id = params.id;
+
+  const task = await request.server.prisma.task.update({
+    where: {
+      id
+    },
+    data: {
+      ...payload,
+      creatorId: 1, // TODO get from request
+      status: 'TODO'
+    }
+  })
+
+  return reply.code(200).send(task)
+}
+
+export const deleteTask = async (
+  request: FastifyRequest<{
+    Params: {
+      id: number
+    }
+  }>, reply: FastifyReply
+) => {
+  const params = request.params
+
+  if (!params?.id) {
+    return reply.code(400).send({
+      error: 'Missing id'
+    })
+  }
+
+  const id = params.id;
+
+  await request.server.prisma.task.delete({
+    where: {
+      id
+    }
+  })
+
+  return reply.code(204).send();
+}
+

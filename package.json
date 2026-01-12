@@ -29,7 +29,8 @@
     "fastify": "^4.24.3",
     "fastify-plugin": "^5.1.0",
     "pg": "^8.16.3",
-    "prisma": "^7.2.0"
+    "prisma": "^7.2.0",
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@types/node": "^25.0.6",
