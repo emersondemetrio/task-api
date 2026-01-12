@@ -1,24 +1,16 @@
 import fastify from 'fastify';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
-import { PrismaClient } from '../generated/prisma';
+import prismaPlugin from './plugins/prisma'
 
-import dotenv from 'dotenv';
+const server = fastify({
+  logger: {
+    level: 'info',
+  }
+})
 
-dotenv.config();
-
-const server = fastify()
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
-
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({
-  adapter,
-});
+server.register(prismaPlugin)
 
 server.get('/tasks', async (request, reply) => {
-  const tasks = await prisma.task.findMany()
+  const tasks = await request.server.prisma.task.findMany()
   return reply.code(200).send(tasks)
 })
 
