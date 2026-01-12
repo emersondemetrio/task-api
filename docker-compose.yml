@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: task-app-database
+    restart: always
+    environment:
+      POSTGRES_USER: taskAppDBUser
+      POSTGRES_PASSWORD: databaseSuperStrongPassword
+      POSTGRES_DB: mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - task-app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskAppDBUser -d mydb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: task-app
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://taskAppDBUser:databaseSuperStrongPassword@postgres:5432/mydb?schema=public
+      LOG_LEVEL: info
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - task-app-network
+    command: sh -c "npx prisma migrate deploy && node dist/server.js"
+
+volumes:
+  postgres_data:
+
+networks:
+  task-app-network:
+    driver: bridge

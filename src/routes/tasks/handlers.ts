@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import { TaskStatus } from '../../../generated/prisma';
 import { Prisma } from '../../../generated/prisma';
 import type { CreateTaskBody, UpdateTaskBody, PatchTaskBody, TaskParams } from '../../schemas/tasks';
+import { addLinksToTask, addLinksToTasks, getTasksCollectionLinks } from './restful-utils';
 
 const TASK_STATUS_MAP: Record<string, TaskStatus> = {
   'todo': TaskStatus.TODO,
@@ -22,8 +23,11 @@ export const getAllTasks = async (request: FastifyRequest, reply: FastifyReply) 
     orderBy: { createdAt: 'desc' }
   });
 
+  const tasksWithLinks = addLinksToTasks(request, tasks);
+
   return reply.code(200).send({
-    tasks
+    tasks: tasksWithLinks,
+    _links: getTasksCollectionLinks(request)
   });
 }
 
@@ -37,8 +41,8 @@ export const getTaskById = async (request: FastifyRequest, reply: FastifyReply) 
   }
 
   request.log.debug({ task }, 'Task found');
-
-  return reply.code(200).send(task);
+  const taskWithLinks = addLinksToTask(request, task);
+  return reply.code(200).send(taskWithLinks);
 }
 
 export const createTask = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -52,15 +56,18 @@ export const createTask = async (request: FastifyRequest, reply: FastifyReply) =
     data: {
       title,
       description,
-      // Design choice - all tasks are created as TODO
       status: TaskStatus.TODO,
       creatorId: request.user.id,
     }
   });
 
   request.log.info({ taskId: task.id }, 'Task created');
-
-  return reply.send(task);
+  const taskWithLinks = addLinksToTask(request, task);
+  const baseUrl = `${request.protocol}://${request.hostname}`;
+  return reply
+    .header('Location', `${baseUrl}/tasks/${task.id}`)
+    .code(201)
+    .send(taskWithLinks);
 }
 
 export const patchTask = async (request: FastifyRequest, reply: FastifyReply) => {
@@ -89,8 +96,8 @@ export const patchTask = async (request: FastifyRequest, reply: FastifyReply) =>
     });
 
     request.log.info({ id, updates: { title, description, status } }, 'Task patched');
-
-    return reply.code(200).send(task);
+    const taskWithLinks = addLinksToTask(request, task);
+    return reply.code(200).send(taskWithLinks);
   } catch (error) {
     request.log.error({ id, error }, 'Error patching task');
     return reply.code(500).send({ error: 'Internal server error' });
@@ -114,7 +121,8 @@ export const updateTask = async (request: FastifyRequest, reply: FastifyReply) =
     });
 
     request.log.info({ id }, 'Task updated (full replacement)');
-    return reply.code(200).send(task);
+    const taskWithLinks = addLinksToTask(request, task);
+    return reply.code(200).send(taskWithLinks);
   } catch (error) {
     request.log.error({ id, error }, 'Error updating task');
     return reply.code(500).send({ error: 'Internal server error' });
