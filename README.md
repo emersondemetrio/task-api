@@ -32,6 +32,12 @@ DATABASE_URL="postgresql://DB_UsER_NAME:DB_PASSWORD@localhost:5432/mydb?schema=p
 LOG_LEVEL="info"
 ```
 
+Generate prisma:
+
+```bash
+npx prisma generate
+```
+
 #### 3. Start PostgreSQL
 
 ```bash

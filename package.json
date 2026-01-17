@@ -16,8 +16,7 @@
     "docker:logs:db": "docker-compose logs -f postgres",
     "docker:restart": "docker-compose restart app",
     "docker:clean": "docker-compose down -v",
-    "test": "node --test --import tsx test/**/*.test.ts",
-    "postinstall": "npx prisma generate"
+    "test": "node --test --import tsx test/**/*.test.ts"
   },
   "repository": {
     "type": "git",
